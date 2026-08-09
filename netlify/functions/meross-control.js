@@ -1,7 +1,7 @@
 // Sends a control command (toggle on/off, or brightness) to one Meross device.
-// See meross-devices.js for the caveat on this being an unofficial protocol.
+// See meross-devices.js for why this uses `meross-iot` instead of `meross-cloud`.
 
-const MerossCloud = require('meross-cloud');
+const Meross = require('meross-iot');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -22,45 +22,37 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: 'uuid and action are required' };
   }
 
-  return new Promise((resolve) => {
-    const meross = new MerossCloud({
+  let meross;
+  try {
+    meross = await Meross.connect({
       email: process.env.MEROSS_EMAIL,
       password: process.env.MEROSS_PASSWORD,
-      logger: () => {},
     });
 
-    let targetDevice = null;
-    meross.on('deviceInitialized', (deviceId, deviceDef, device) => {
-      if (deviceId === uuid) targetDevice = device;
-    });
-    meross.on('error', (err) => {
-      resolve({ statusCode: 502, body: `Meross error: ${err.message || err}` });
-    });
+    const device = meross.devices.list().find((d) => d.uuid === uuid);
+    if (!device) throw new Error('Device not found, or offline');
 
-    meross.connect((err) => {
-      if (err) {
-        resolve({ statusCode: 502, body: `Meross connect error: ${err.message || err}` });
-        return;
+    if (action === 'toggle') {
+      if (device.light) {
+        await device.light.set({ channel: 0, onoff: on ? 1 : 0 });
+      } else if (device.toggle) {
+        await device.toggle.set({ channel: 0, on: !!on });
+      } else {
+        throw new Error('Device has no toggle or light capability');
       }
-      setTimeout(async () => {
-        try {
-          if (!targetDevice) throw new Error('Device not found, or offline');
+    } else if (action === 'brightness') {
+      if (!device.light) throw new Error('Device is not dimmable');
+      await device.light.set({ channel: 0, luminance: Number(brightness) });
+    } else {
+      throw new Error(`Unknown action: ${action}`);
+    }
 
-          if (action === 'toggle') {
-            await targetDevice.controlToggleX(0, !!on);
-          } else if (action === 'brightness') {
-            await targetDevice.controlLight({ luminance: Number(brightness) });
-          } else {
-            throw new Error(`Unknown action: ${action}`);
-          }
-
-          meross.disconnect();
-          resolve({ statusCode: 200, body: JSON.stringify({ ok: true }) });
-        } catch (e) {
-          meross.disconnect();
-          resolve({ statusCode: 502, body: `Meross error: ${e.message || e}` });
-        }
-      }, 2000);
-    });
-  });
+    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+  } catch (err) {
+    return { statusCode: 502, body: `Meross error: ${err.message || err}` };
+  } finally {
+    if (meross && typeof meross.disconnect === 'function') {
+      await meross.disconnect().catch(() => {});
+    }
+  }
 };
