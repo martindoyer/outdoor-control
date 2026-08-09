@@ -34,41 +34,31 @@ exports.handler = async () => {
 
     const result = [];
     for (const device of devices) {
-      const dimmable = !!device.light;
-
-      // toggle.getAll() returns per-channel state, e.g. [{channel:0,on:true},{channel:1,on:false}]
-      // for multi-outlet devices, or a single entry for simple plugs/switches.
-      // We use this (rather than a separate "channels" property) since it's the
-      // one shape confirmed by the library's own toggle.set({channel, on}) API.
-      let toggleStates = null;
+      let toggleGetAllResult = null;
+      let toggleGetAllError = null;
       try {
-        if (device.toggle) toggleStates = await device.toggle.getAll();
+        if (device.toggle) toggleGetAllResult = await device.toggle.getAll();
       } catch (e) {
-        console.error(`toggle.getAll failed for ${device.name}:`, e.message || e);
+        toggleGetAllError = e.message || String(e);
       }
 
-      if (Array.isArray(toggleStates) && toggleStates.length > 1) {
-        toggleStates.forEach((state, i) => {
-          result.push({
-            uuid: `${device.uuid}:${state.channel ?? i}`,
-            name: `${device.name} — Switch ${i + 1}`,
-            online: !!device.isOnline,
-            dimmable: false,
-            isOn: !!state.on,
-            brightness: 100,
-          });
-        });
-      } else {
-        const isOn = Array.isArray(toggleStates) && toggleStates[0] ? !!toggleStates[0].on : false;
-        result.push({
-          uuid: device.uuid,
-          name: device.name,
-          online: !!device.isOnline,
-          dimmable,
-          isOn,
-          brightness: 100,
-        });
-      }
+      result.push({
+        uuid: device.uuid,
+        name: device.name,
+        online: !!device.isOnline,
+        isOn: false,
+        dimmable: !!device.light,
+        brightness: 100,
+        _debug: {
+          hasToggle: !!device.toggle,
+          hasLight: !!device.light,
+          toggleGetAllResult,
+          toggleGetAllError,
+          channelsProperty: device.channels ?? null,
+          capabilitiesProperty: device.capabilities ?? null,
+          deviceOwnKeys: Object.keys(device),
+        },
+      });
     }
 
     return {
