@@ -32,33 +32,58 @@ exports.handler = async () => {
 
     const devices = meross.devices.list();
 
+    // Helper: JSON.stringify silently turns a Map into {} — unwrap it properly
+    // so we can actually see/use what's inside instead of assuming it's empty.
+    const unwrapMaybeMap = (val) => {
+      if (val instanceof Map) return Object.fromEntries(val);
+      return val;
+    };
+
     const result = [];
     for (const device of devices) {
       let toggleGetAllResult = null;
       let toggleGetAllError = null;
       try {
-        if (device.toggle) toggleGetAllResult = await device.toggle.getAll();
+        if (device.toggle) toggleGetAllResult = unwrapMaybeMap(await device.toggle.getAll());
       } catch (e) {
         toggleGetAllError = e.message || String(e);
       }
 
-      result.push({
-        uuid: device.uuid,
-        name: device.name,
-        online: !!device.isOnline,
-        isOn: false,
-        dimmable: !!device.light,
-        brightness: 100,
-        _debug: {
-          hasToggle: !!device.toggle,
-          hasLight: !!device.light,
-          toggleGetAllResult,
-          toggleGetAllError,
-          channelsProperty: device.channels ?? null,
-          capabilitiesProperty: device.capabilities ?? null,
-          deviceOwnKeys: Object.keys(device),
-        },
-      });
+      // Real switch channels, excluding the master/"Main channel" entry.
+      const realChannels = Array.isArray(device.channels)
+        ? device.channels.filter((ch) => !ch._master)
+        : [];
+
+      if (realChannels.length > 1) {
+        realChannels.forEach((ch) => {
+          const state = toggleGetAllResult ? toggleGetAllResult[ch._index] : null;
+          result.push({
+            uuid: `${device.uuid}:${ch._index}`,
+            name: ch._name || `${device.name} — Switch ${ch._index}`,
+            online: !!device.isOnline,
+            dimmable: false,
+            isOn: !!(state && (state.on ?? state.onoff)),
+            brightness: 100,
+          });
+        });
+      } else {
+        result.push({
+          uuid: device.uuid,
+          name: device.name,
+          online: !!device.isOnline,
+          dimmable: !!device.light,
+          isOn: false,
+          brightness: 100,
+        });
+      }
+
+      // Temporary — remove once state is confirmed correct.
+      result[result.length - 1]._debug = {
+        toggleGetAllResult,
+        toggleGetAllError,
+        toggleStateByChannel: unwrapMaybeMap(device._toggleStateByChannel),
+        realChannels,
+      };
     }
 
     return {
