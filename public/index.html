@@ -94,7 +94,6 @@
     <button id="saveSettingsBtn" class="save-btn">Save</button>
   </div>
 </div>
-
 <!-- TEMPORARY debug console — remove once things are working. -->
 <script>
   // On-page error banner — shows full detail for same-origin errors and
@@ -116,8 +115,25 @@
 <script src="https://cdn.jsdelivr.net/npm/eruda" crossorigin="anonymous"></script>
 <script>try { eruda.init(); } catch (e) { showDebugBanner('eruda failed to init: ' + e.message); }</script>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" defer></script>
+<script>
+  // Supabase's SDK bundle uses syntax that some older Safari versions can't
+  // parse at all, which was crashing the whole script tag. Feature-detect
+  // first and skip loading it entirely if unsupported — device-renaming
+  // persistence just won't be available on that browser, everything else
+  // still works.
+  var supportsModernSyntax = true;
+  try { new Function('return (1)?.toString();')(); } catch (e) { supportsModernSyntax = false; }
+  if (supportsModernSyntax) {
+    var supaScript = document.createElement('script');
+    supaScript.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    supaScript.crossOrigin = 'anonymous';
+    document.head.appendChild(supaScript);
+  } else {
+    showDebugBanner('Note: this browser is too old to run the Supabase SDK — device renaming will be unavailable here, but lights/Spotify still work.');
+  }
+</script>
 <script src="app.js" defer></script>
+
 
 </body>
 </html>
