@@ -273,7 +273,7 @@ async function initSpotifyPlayer() {
     const track = state.track_window.current_track;
     document.getElementById('trackName').textContent = track.name;
     document.getElementById('trackArtist').textContent = track.artists.map(a => a.name).join(', ');
-    document.getElementById('trackArt').src = track.album.images[0]?.url || '';
+    document.getElementById('trackArt').src = (track.album.images[0] && track.album.images[0].url) || '';
     document.getElementById('playIcon').innerHTML = state.paused
       ? '<path d="M8 5v14l11-7z"/>'
       : '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
