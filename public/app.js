@@ -13,11 +13,11 @@ function saveSettings(patch) {
 }
 
 let settings = loadSettings();
-let supabase = null;
+let supabaseClient = null;
 
 function initSupabase() {
   if (settings.supabaseUrl && settings.supabaseKey && window.supabase) {
-    supabase = window.supabase.createClient(settings.supabaseUrl, settings.supabaseKey);
+    supabaseClient = window.supabase.createClient(settings.supabaseUrl, settings.supabaseKey);
   }
 }
 initSupabase();
@@ -47,8 +47,8 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
   for (const row of rows) {
     const uuid = row.dataset.uuid;
     const name = row.querySelector('input').value.trim();
-    if (uuid && name && supabase) {
-      await supabase.from('outdoor_devices').upsert({ uuid, custom_name: name });
+    if (uuid && name && supabaseClient) {
+      await supabaseClient.from('outdoor_devices').upsert({ uuid, custom_name: name });
     }
   }
   modal.classList.remove('is-open');
@@ -69,8 +69,8 @@ function bulbIcon(isOn) {
 
 async function loadLights() {
   let nameOverrides = {};
-  if (supabase) {
-    const { data } = await supabase.from('outdoor_devices').select('uuid, custom_name');
+  if (supabaseClient) {
+    const { data } = await supabaseClient.from('outdoor_devices').select('uuid, custom_name');
     (data || []).forEach(d => { nameOverrides[d.uuid] = d.custom_name; });
   }
 
