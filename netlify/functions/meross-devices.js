@@ -32,17 +32,44 @@ exports.handler = async () => {
 
     const devices = meross.devices.list();
 
-    const result = devices.map((device) => {
+    const result = [];
+    for (const device of devices) {
       const dimmable = !!device.light;
-      return {
-        uuid: device.uuid,
-        name: device.name,
-        online: !!device.isOnline,
-        dimmable,
-        isOn: false,
-        brightness: 100,
-      };
-    });
+
+      // toggle.getAll() returns per-channel state, e.g. [{channel:0,on:true},{channel:1,on:false}]
+      // for multi-outlet devices, or a single entry for simple plugs/switches.
+      // We use this (rather than a separate "channels" property) since it's the
+      // one shape confirmed by the library's own toggle.set({channel, on}) API.
+      let toggleStates = null;
+      try {
+        if (device.toggle) toggleStates = await device.toggle.getAll();
+      } catch (e) {
+        console.error(`toggle.getAll failed for ${device.name}:`, e.message || e);
+      }
+
+      if (Array.isArray(toggleStates) && toggleStates.length > 1) {
+        toggleStates.forEach((state, i) => {
+          result.push({
+            uuid: `${device.uuid}:${state.channel ?? i}`,
+            name: `${device.name} — Switch ${i + 1}`,
+            online: !!device.isOnline,
+            dimmable: false,
+            isOn: !!state.on,
+            brightness: 100,
+          });
+        });
+      } else {
+        const isOn = Array.isArray(toggleStates) && toggleStates[0] ? !!toggleStates[0].on : false;
+        result.push({
+          uuid: device.uuid,
+          name: device.name,
+          online: !!device.isOnline,
+          dimmable,
+          isOn,
+          brightness: 100,
+        });
+      }
+    }
 
     return {
       statusCode: 200,
