@@ -4,6 +4,6 @@
   "private": true,
   "description": "Patio control: Meross outdoor lights + Spotify playback",
   "dependencies": {
-    "meross-cloud": "^3.0.9"
+    "meross-iot": "0.10.0"
   }
 }
