@@ -55,8 +55,14 @@ exports.handler = async () => {
         : [];
 
       if (realChannels.length > 1) {
-        realChannels.forEach((ch) => {
-          const state = toggleGetAllResult ? toggleGetAllResult[ch._index] : null;
+        for (const ch of realChannels) {
+          let state = null;
+          let stateError = null;
+          try {
+            state = await device.toggle.get({ channel: ch._index });
+          } catch (e) {
+            stateError = e.message || String(e);
+          }
           result.push({
             uuid: `${device.uuid}:${ch._index}`,
             name: ch._name || `${device.name} — Switch ${ch._index}`,
@@ -64,8 +70,9 @@ exports.handler = async () => {
             dimmable: false,
             isOn: !!(state && (state.on ?? state.onoff)),
             brightness: 100,
+            _debug: { state, stateError },
           });
-        });
+        }
       } else {
         result.push({
           uuid: device.uuid,
@@ -77,13 +84,6 @@ exports.handler = async () => {
         });
       }
 
-      // Temporary — remove once state is confirmed correct.
-      result[result.length - 1]._debug = {
-        toggleGetAllResult,
-        toggleGetAllError,
-        toggleStateByChannel: unwrapMaybeMap(device._toggleStateByChannel),
-        realChannels,
-      };
     }
 
     return {
