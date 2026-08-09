@@ -41,20 +41,24 @@ exports.handler = async (event) => {
     await meross.devices.discover({ onlineOnly: false });
     await meross.devices.initialize();
 
-    const device = meross.devices.list().find((d) => d.uuid === uuid);
+    // uuid may be "realUuid:channelIndex" for multi-outlet devices — split it back apart.
+    const [realUuid, channelPart] = uuid.includes(':') ? uuid.split(':') : [uuid, '0'];
+    const channel = Number(channelPart) || 0;
+
+    const device = meross.devices.list().find((d) => d.uuid === realUuid);
     if (!device) throw new Error('Device not found, or offline');
 
     if (action === 'toggle') {
       if (device.light) {
-        await device.light.set({ channel: 0, onoff: on ? 1 : 0 });
+        await device.light.set({ channel, onoff: on ? 1 : 0 });
       } else if (device.toggle) {
-        await device.toggle.set({ channel: 0, on: !!on });
+        await device.toggle.set({ channel, on: !!on });
       } else {
         throw new Error('Device has no toggle or light capability');
       }
     } else if (action === 'brightness') {
       if (!device.light) throw new Error('Device is not dimmable');
-      await device.light.set({ channel: 0, luminance: Number(brightness) });
+      await device.light.set({ channel, luminance: Number(brightness) });
     } else {
       throw new Error(`Unknown action: ${action}`);
     }
