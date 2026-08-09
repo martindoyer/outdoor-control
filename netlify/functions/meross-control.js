@@ -3,6 +3,12 @@
 
 const Meross = require('meross-iot');
 
+// meross-iot's underlying MQTT connection can emit 'error' events with no
+// listener attached, which crashes the whole Node process (not just our
+// try/catch) — these two handlers stop that from taking the function down.
+process.on('uncaughtException', (err) => console.error('Uncaught exception:', err));
+process.on('unhandledRejection', (reason) => console.error('Unhandled rejection:', reason));
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method not allowed' };
@@ -24,10 +30,16 @@ exports.handler = async (event) => {
 
   let meross;
   try {
-    meross = await Meross.connect({
+    meross = await Meross.authenticate({
       email: process.env.MEROSS_EMAIL,
       password: process.env.MEROSS_PASSWORD,
     });
+    if (typeof meross.on === 'function') {
+      meross.on('error', (e) => console.error('meross instance error event:', e));
+    }
+
+    await meross.devices.discover({ onlineOnly: false });
+    await meross.devices.initialize();
 
     const device = meross.devices.list().find((d) => d.uuid === uuid);
     if (!device) throw new Error('Device not found, or offline');
