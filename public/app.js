@@ -127,13 +127,23 @@ async function loadLights() {
 }
 
 async function toggleLight(uuid, on) {
-  await fetch('/.netlify/functions/meross-control', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ uuid, action: 'toggle', on }),
-  });
+  try {
+    const res = await fetch('/.netlify/functions/meross-control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uuid, action: 'toggle', on }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Toggle failed:', res.status, text);
+      alert(`Toggle failed: ${text}`);
+    }
+  } catch (err) {
+    console.error('Toggle request error:', err);
+  }
   loadLights();
 }
+
 
 async function setBrightness(uuid, brightness) {
   await fetch('/.netlify/functions/meross-control', {
