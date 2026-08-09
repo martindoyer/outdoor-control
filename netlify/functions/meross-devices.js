@@ -2,7 +2,7 @@
 //
 // Uses `meross-iot`. Note: Meross.connect() alone was returning zero devices —
 // discovery has to be triggered explicitly, so we call discover() + initialize()
-// before reading the list.
+// before reading the list. a
 
 const Meross = require('meross-iot');
 
