@@ -95,13 +95,26 @@
   </div>
 </div>
 
-<!-- TEMPORARY debug console — remove once things are working. Tap the
-     floating circle it adds to see JS errors directly on this device. -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
-
+<!-- TEMPORARY debug console — remove once things are working. -->
+<script>
+  // On-page error banner — shows full detail for same-origin errors and
+  // unhandled promise rejections, which aren't subject to the same
+  // cross-origin masking that plain script-tag errors get.
+  window.addEventListener('error', function (e) {
+    showDebugBanner('Error: ' + e.message + ' (' + e.filename + ':' + e.lineno + ':' + e.colno + ')');
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    showDebugBanner('Unhandled rejection: ' + (e.reason && e.reason.stack ? e.reason.stack : e.reason));
+  });
+  function showDebugBanner(msg) {
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b00020;color:#fff;font-family:monospace;font-size:12px;padding:10px;white-space:pre-wrap;word-break:break-word;';
+    el.textContent = msg;
+    document.body.appendChild(el);
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/eruda" crossorigin="anonymous"></script>
-<script>eruda.init();</script>
+<script>try { eruda.init(); } catch (e) { showDebugBanner('eruda failed to init: ' + e.message); }</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous" defer></script>
 <script src="app.js" defer></script>
